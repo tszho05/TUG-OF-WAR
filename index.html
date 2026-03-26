@@ -179,6 +179,7 @@
         }
         .btn-correct { animation: correctFlash 0.5s ease forwards; }
         .btn-wrong   { animation: wrongShake  0.5s ease forwards; }
+        .btn-locked  { opacity: 0.5; pointer-events: none; }
         #marker.bounce { animation: markerBounce 0.5s ease; }
 
         /* 勝利畫面 */
@@ -295,6 +296,7 @@
         const step = 10;
         let redScore = 0;
         let blueScore = 0;
+        let isWrongCooldown = false;
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -325,7 +327,7 @@
         }
 
         function checkAnswer(selectedOption, team, clickedBtn) {
-            if (clickedBtn.classList.contains('btn-correct') || clickedBtn.classList.contains('btn-wrong')) return;
+            if (clickedBtn.classList.contains('btn-correct') || isWrongCooldown) return;
 
             if (selectedOption === currentQuestion.answer) {
                 if (team === "red") {
@@ -356,8 +358,14 @@
                 }, 520);
 
             } else {
+                isWrongCooldown = true;
                 clickedBtn.classList.add('btn-wrong');
-                setTimeout(() => clickedBtn.classList.remove('btn-wrong'), 520);
+                document.querySelectorAll('.btn-option').forEach(btn => btn.classList.add('btn-locked'));
+                setTimeout(() => {
+                    clickedBtn.classList.remove('btn-wrong');
+                    document.querySelectorAll('.btn-option').forEach(btn => btn.classList.remove('btn-locked'));
+                    isWrongCooldown = false;
+                }, 700);
             }
         }
 
@@ -418,12 +426,14 @@
         function startGame() {
             markerPosition = 50;
             redScore = 0; blueScore = 0;
+            isWrongCooldown = false;
             document.getElementById("red-score").innerText  = "0";
             document.getElementById("blue-score").innerText = "0";
             document.getElementById("rope-img").style.transform = "translate(-50%, -50%)";
             document.getElementById("marker").style.transform    = "translate(-50%, -6px)";
             document.getElementById("confetti-container").innerHTML = "";
             document.getElementById("overlay").style.display = "none";
+            document.querySelectorAll('.btn-option').forEach(btn => btn.classList.remove('btn-locked'));
             loadQuestion();
         }
 
