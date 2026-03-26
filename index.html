@@ -26,7 +26,15 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 10;
         }
-        h1 { margin: 0; font-size: 32px; color: #333; }
+        h1 {
+            margin: 0;
+            font-size: 32px;
+            background: linear-gradient(90deg, #e74c3c, #f39c12, #27ae60, #2980b9, #8e44ad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
         #question-display {
             font-size: 60px;
             font-weight: bold;
@@ -52,6 +60,18 @@
             width: 4px;
             background-color: #333;
             transform: translateX(-50%);
+            z-index: 2;
+        }
+        #rope-img {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            height: 40px;
+            object-fit: cover;
+            z-index: 1;
+            pointer-events: none;
         }
         /* 拔河標記（代表繩子中間的紅布） */
         #marker {
@@ -83,14 +103,23 @@
         }
         #red-team { background-color: #ffebee; border-right: 2px solid #ddd; }
         #blue-team { background-color: #e3f2fd; }
-        
+
         .team-title {
             font-size: 40px;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         #red-team .team-title { color: #d32f2f; }
         #blue-team .team-title { color: #1976d2; }
+
+        .score-display {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+        #red-team .score-display { color: #c62828; }
+        #blue-team .score-display { color: #1565c0; }
 
         /* 按鈕網格 */
         .options-grid {
@@ -114,14 +143,47 @@
             transform: translateY(6px);
             box-shadow: none;
         }
+        .btn-option:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 0 rgba(0,0,0,0.25);
+        }
         #red-team .btn-option { background-color: #ff5252; color: white; }
         #blue-team .btn-option { background-color: #448aff; color: white; }
-        
+
+        /* 答對/答錯動畫 */
+        @keyframes correctFlash {
+            0%   { transform: scale(1); }
+            25%  { background-color: #2ecc71; transform: scale(1.12); }
+            50%  { background-color: #27ae60; transform: scale(1.08); }
+            75%  { background-color: #2ecc71; transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+        @keyframes wrongShake {
+            0%   { transform: translateX(0); }
+            15%  { transform: translateX(-8px); background-color: #ff1744; }
+            30%  { transform: translateX(8px);  background-color: #ff1744; }
+            45%  { transform: translateX(-6px); background-color: #ff5252; }
+            60%  { transform: translateX(6px);  background-color: #ff5252; }
+            75%  { transform: translateX(-3px); }
+            90%  { transform: translateX(3px); }
+            100% { transform: translateX(0); }
+        }
+        @keyframes markerBounce {
+            0%   { transform: translate(-50%, 0) scale(1); }
+            30%  { transform: translate(-50%, -18px) scale(1.15); }
+            60%  { transform: translate(-50%, 4px) scale(0.95); }
+            80%  { transform: translate(-50%, -8px) scale(1.05); }
+            100% { transform: translate(-50%, 0) scale(1); }
+        }
+        .btn-correct { animation: correctFlash 0.5s ease forwards; }
+        .btn-wrong   { animation: wrongShake 0.5s ease forwards; }
+        #marker.bounce { animation: markerBounce 0.5s ease; }
+
         /* 勝利畫面 */
         #overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 30, 0.88);
             color: white;
             display: none;
             flex-direction: column;
@@ -129,10 +191,33 @@
             justify-content: center;
             z-index: 100;
         }
-        #winner-text { font-size: 80px; margin-bottom: 30px; font-weight: bold; }
+        #confetti-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 101;
+        }
+        .confetti-piece {
+            position: absolute;
+            top: -20px;
+            opacity: 0;
+            animation: confettiFall linear forwards;
+        }
+        @keyframes confettiFall {
+            0%   { transform: translateY(0) rotate(0deg);       opacity: 1; }
+            80%  { opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+        #winner-text {
+            font-size: 80px; margin-bottom: 30px; font-weight: bold;
+            position: relative; z-index: 102;
+        }
         #restart-btn {
             font-size: 30px; padding: 15px 40px; cursor: pointer;
             border-radius: 10px; border: none; font-family: inherit;
+            position: relative; z-index: 102;
         }
     </style>
 </head>
@@ -145,22 +230,26 @@
 
     <div id="tug-of-war-area">
         <div id="center-line"></div>
+        <img id="rope-img" src="IMAGE/rope.png" alt="rope" onerror="this.style.display='none'">
         <div id="marker"></div>
     </div>
 
     <div id="battle-arena">
         <div id="red-team" class="team-zone">
             <div class="team-title">紅隊</div>
+            <div class="score-display" id="red-score">答對：0</div>
             <div class="options-grid" id="red-options"></div>
         </div>
 
         <div id="blue-team" class="team-zone">
             <div class="team-title">藍隊</div>
+            <div class="score-display" id="blue-score">答對：0</div>
             <div class="options-grid" id="blue-options"></div>
         </div>
     </div>
 
     <div id="overlay">
+        <div id="confetti-container"></div>
         <div id="winner-text">紅隊勝出！</div>
         <button id="restart-btn" onclick="startGame()">再玩一次</button>
     </div>
@@ -194,6 +283,8 @@
         let currentQuestion = {};
         let markerPosition = 50; // 50 是正中間 (百分比)
         const step = 10; // 答對一次移動 10%
+        let redScore = 0;
+        let blueScore = 0;
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -207,7 +298,7 @@
             // 隨機抽選一題
             const randomIndex = Math.floor(Math.random() * questionBank.length);
             currentQuestion = questionBank[randomIndex];
-            
+
             // 更新題目顯示
             document.getElementById("question-display").innerText = `一（　）${currentQuestion.item}`;
 
@@ -222,30 +313,57 @@
         function renderOptions(containerId, options, team) {
             const container = document.getElementById(containerId);
             container.innerHTML = ""; // 清空舊按鈕
-            
+
             options.forEach(opt => {
                 const btn = document.createElement("button");
                 btn.className = "btn-option";
                 btn.innerText = opt;
                 // 綁定點擊事件（適合滑鼠與觸控屏幕）
-                btn.onpointerdown = () => checkAnswer(opt, team);
+                btn.onpointerdown = function() { checkAnswer(opt, team, this); };
                 container.appendChild(btn);
             });
         }
 
-        function checkAnswer(selectedOption, team) {
+        function checkAnswer(selectedOption, team, clickedBtn) {
+            // 防止動畫期間重複點擊
+            if (clickedBtn.classList.contains('btn-correct') || clickedBtn.classList.contains('btn-wrong')) return;
+
             if (selectedOption === currentQuestion.answer) {
-                // 答對了！移動標記
+                // 答對了！更新分數並移動標記
                 if (team === "red") {
-                    markerPosition -= step; // 紅隊在左邊，數值減少
+                    markerPosition -= step;
+                    redScore++;
+                    document.getElementById("red-score").innerText = `答對：${redScore}`;
                 } else {
-                    markerPosition += step; // 藍隊在右邊，數值增加
+                    markerPosition += step;
+                    blueScore++;
+                    document.getElementById("blue-score").innerText = `答對：${blueScore}`;
                 }
-                
+
+                // 按鈕閃綠光
+                clickedBtn.classList.add('btn-correct');
+
+                // 標記彈跳
+                const marker = document.getElementById("marker");
+                marker.classList.remove('bounce');
+                void marker.offsetWidth; // 強制重繪以重啟動畫
+                marker.classList.add('bounce');
+
                 updateMarker();
-                checkWinCondition();
+
+                // 等動畫完成再進入下一題
+                setTimeout(() => {
+                    clickedBtn.classList.remove('btn-correct');
+                    marker.classList.remove('bounce');
+                    checkWinCondition();
+                }, 520);
+
             } else {
-                // 答錯了，這裡可以加入音效或閃爍特效，目前簡單處理不扣分
+                // 答錯了！按鈕震動
+                clickedBtn.classList.add('btn-wrong');
+                setTimeout(() => {
+                    clickedBtn.classList.remove('btn-wrong');
+                }, 520);
             }
         }
 
@@ -264,14 +382,58 @@
             }
         }
 
+        function launchConfetti() {
+            const container = document.getElementById("confetti-container");
+            container.innerHTML = "";
+
+            const colors = [
+                "#e74c3c", "#e67e22", "#f1c40f",
+                "#2ecc71", "#3498db", "#9b59b6",
+                "#1abc9c", "#e91e63", "#ff9800"
+            ];
+
+            for (let i = 0; i < 120; i++) {
+                const piece = document.createElement("div");
+                piece.className = "confetti-piece";
+                piece.style.left = Math.random() * 100 + "vw";
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+                const size = 8 + Math.random() * 10;
+                const r = Math.random();
+                if (r < 0.33) {
+                    piece.style.width = size + "px";
+                    piece.style.height = size + "px";
+                    piece.style.borderRadius = "50%";
+                } else if (r < 0.66) {
+                    piece.style.width = size + "px";
+                    piece.style.height = size + "px";
+                    piece.style.borderRadius = "2px";
+                } else {
+                    piece.style.width = (size * 0.5) + "px";
+                    piece.style.height = (size * 1.8) + "px";
+                    piece.style.borderRadius = "0";
+                }
+
+                piece.style.animationDuration = (1.5 + Math.random() * 2) + "s";
+                piece.style.animationDelay = (Math.random() * 2) + "s";
+                container.appendChild(piece);
+            }
+        }
+
         function showWinner(text) {
             document.getElementById("winner-text").innerText = text;
+            launchConfetti();
             document.getElementById("overlay").style.display = "flex";
         }
 
         function startGame() {
             markerPosition = 50;
             updateMarker();
+            redScore = 0;
+            blueScore = 0;
+            document.getElementById("red-score").innerText = "答對：0";
+            document.getElementById("blue-score").innerText = "答對：0";
+            document.getElementById("confetti-container").innerHTML = "";
             document.getElementById("overlay").style.display = "none";
             loadQuestion();
         }
