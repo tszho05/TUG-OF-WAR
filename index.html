@@ -45,47 +45,60 @@
 
         /* 拔河動畫區 */
         #tug-of-war-area {
-            height: 150px;
-            background-color: #e8f6e9;
+            height: 280px;
+            background-color: #fff;
             position: relative;
             display: flex;
             align-items: center;
-            border-bottom: 5px dashed #ccc;
+            overflow: hidden;
+            border-radius: 16px;
+            border: 2px solid #e0e0e0;
+            margin: 8px 16px;
         }
         #center-line {
             position: absolute;
             left: 50%;
             top: 0;
             bottom: 0;
-            width: 4px;
-            background-color: #333;
+            width: 0;
+            border-left: 3px dashed #bbb;
             transform: translateX(-50%);
-            z-index: 2;
+            z-index: 3;
         }
         #rope-img {
             position: absolute;
-            left: 0;
+            left: 50%;
             top: 50%;
-            transform: translateY(-50%);
-            width: 100%;
-            height: 40px;
-            object-fit: cover;
+            transform: translate(-50%, -50%);
+            height: 85%;
+            width: auto;
+            object-fit: contain;
             z-index: 1;
             pointer-events: none;
+            transition: transform 0.4s ease-out;
         }
-        /* 拔河標記（代表繩子中間的紅布） */
+        /* 拔河旗幟（掛在繩子中間） */
         #marker {
             position: absolute;
             left: 50%;
-            width: 60px;
-            height: 60px;
-            background-color: #e74c3c;
-            border: 4px solid #fff;
-            border-radius: 50%;
-            transform: translate(-50%, 0);
-            transition: left 0.3s ease-out; /* 平滑移動動畫 */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            top: 50%;
+            width: 3px;
+            height: 38px;
+            background-color: #555;
+            border-radius: 2px;
+            transform: translate(-50%, -6px);
+            transition: transform 0.4s ease-out;
             z-index: 5;
+        }
+        #marker::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 3px;
+            width: 0; height: 0;
+            border-top: 11px solid #e74c3c;
+            border-bottom: 11px solid transparent;
+            border-left: 20px solid #e74c3c;
         }
 
         /* 左右對戰區 */
@@ -169,11 +182,11 @@
             100% { transform: translateX(0); }
         }
         @keyframes markerBounce {
-            0%   { transform: translate(-50%, 0) scale(1); }
-            30%  { transform: translate(-50%, -18px) scale(1.15); }
-            60%  { transform: translate(-50%, 4px) scale(0.95); }
-            80%  { transform: translate(-50%, -8px) scale(1.05); }
-            100% { transform: translate(-50%, 0) scale(1); }
+            0%   { transform: translate(-50%, -6px) translateX(var(--flag-offset, 0px)) rotate(0deg); }
+            25%  { transform: translate(-50%, -6px) translateX(var(--flag-offset, 0px)) rotate(-12deg); }
+            50%  { transform: translate(-50%, -6px) translateX(var(--flag-offset, 0px)) rotate(9deg); }
+            75%  { transform: translate(-50%, -6px) translateX(var(--flag-offset, 0px)) rotate(-5deg); }
+            100% { transform: translate(-50%, -6px) translateX(var(--flag-offset, 0px)) rotate(0deg); }
         }
         .btn-correct { animation: correctFlash 0.5s ease forwards; }
         .btn-wrong   { animation: wrongShake 0.5s ease forwards; }
@@ -304,7 +317,7 @@
 
             // 打亂選項順序並生成按鈕
             const shuffledOptionsRed = shuffleArray([...currentQuestion.options]);
-            const shuffledOptionsBlue = shuffleArray([...currentQuestion.options]); // 藍隊選項獨立打亂，防止偷看對手位置
+            const shuffledOptionsBlue = shuffleArray([...currentQuestion.options]);
 
             renderOptions("red-options", shuffledOptionsRed, "red");
             renderOptions("blue-options", shuffledOptionsBlue, "blue");
@@ -312,24 +325,21 @@
 
         function renderOptions(containerId, options, team) {
             const container = document.getElementById(containerId);
-            container.innerHTML = ""; // 清空舊按鈕
+            container.innerHTML = "";
 
             options.forEach(opt => {
                 const btn = document.createElement("button");
                 btn.className = "btn-option";
                 btn.innerText = opt;
-                // 綁定點擊事件（適合滑鼠與觸控屏幕）
                 btn.onpointerdown = function() { checkAnswer(opt, team, this); };
                 container.appendChild(btn);
             });
         }
 
         function checkAnswer(selectedOption, team, clickedBtn) {
-            // 防止動畫期間重複點擊
             if (clickedBtn.classList.contains('btn-correct') || clickedBtn.classList.contains('btn-wrong')) return;
 
             if (selectedOption === currentQuestion.answer) {
-                // 答對了！更新分數並移動標記
                 if (team === "red") {
                     markerPosition -= step;
                     redScore++;
@@ -340,18 +350,17 @@
                     document.getElementById("blue-score").innerText = `答對：${blueScore}`;
                 }
 
-                // 按鈕閃綠光
                 clickedBtn.classList.add('btn-correct');
 
-                // 標記彈跳
                 const marker = document.getElementById("marker");
+                const offset = (50 - markerPosition) * 8;
+                marker.style.setProperty('--flag-offset', offset + 'px');
                 marker.classList.remove('bounce');
-                void marker.offsetWidth; // 強制重繪以重啟動畫
+                void marker.offsetWidth;
                 marker.classList.add('bounce');
 
                 updateMarker();
 
-                // 等動畫完成再進入下一題
                 setTimeout(() => {
                     clickedBtn.classList.remove('btn-correct');
                     marker.classList.remove('bounce');
@@ -359,7 +368,6 @@
                 }, 520);
 
             } else {
-                // 答錯了！按鈕震動
                 clickedBtn.classList.add('btn-wrong');
                 setTimeout(() => {
                     clickedBtn.classList.remove('btn-wrong');
@@ -368,7 +376,11 @@
         }
 
         function updateMarker() {
-            document.getElementById("marker").style.left = `${markerPosition}%`;
+            const offset = (50 - markerPosition) * 8;
+            document.getElementById("rope-img").style.transform =
+                `translate(-50%, -50%) translateX(${offset}px)`;
+            document.getElementById("marker").style.transform =
+                `translate(-50%, -6px) translateX(${offset}px)`;
         }
 
         function checkWinCondition() {
@@ -377,7 +389,6 @@
             } else if (markerPosition >= 90) {
                 showWinner("藍隊勝出！ 🎉");
             } else {
-                // 沒人贏，載入下一題
                 loadQuestion();
             }
         }
@@ -428,17 +439,17 @@
 
         function startGame() {
             markerPosition = 50;
-            updateMarker();
             redScore = 0;
             blueScore = 0;
             document.getElementById("red-score").innerText = "答對：0";
             document.getElementById("blue-score").innerText = "答對：0";
+            document.getElementById("rope-img").style.transform = "translate(-50%, -50%)";
+            document.getElementById("marker").style.transform = "translate(-50%, -6px)";
             document.getElementById("confetti-container").innerHTML = "";
             document.getElementById("overlay").style.display = "none";
             loadQuestion();
         }
 
-        // 網頁載入後自動開始遊戲
         window.onload = startGame;
     </script>
 </body>
