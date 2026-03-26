@@ -296,7 +296,8 @@
         const step = 10;
         let redScore = 0;
         let blueScore = 0;
-        let isWrongCooldown = false;
+        let redCooldown = false;
+        let blueCooldown = false;
 
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
@@ -327,7 +328,9 @@
         }
 
         function checkAnswer(selectedOption, team, clickedBtn) {
-            if (clickedBtn.classList.contains('btn-correct') || isWrongCooldown) return;
+            if (clickedBtn.classList.contains('btn-correct')) return;
+            if (team === 'red'  && redCooldown)  return;
+            if (team === 'blue' && blueCooldown) return;
 
             if (selectedOption === currentQuestion.answer) {
                 if (team === "red") {
@@ -358,13 +361,20 @@
                 }, 520);
 
             } else {
-                isWrongCooldown = true;
+                // 只鎖定答錯一方的按鈕
+                const optionsId = team === 'red' ? '#red-options' : '#blue-options';
+                if (team === 'red') {
+                    redCooldown = true;
+                } else {
+                    blueCooldown = true;
+                }
                 clickedBtn.classList.add('btn-wrong');
-                document.querySelectorAll('.btn-option').forEach(btn => btn.classList.add('btn-locked'));
+                document.querySelectorAll(optionsId + ' .btn-option').forEach(btn => btn.classList.add('btn-locked'));
                 setTimeout(() => {
                     clickedBtn.classList.remove('btn-wrong');
-                    document.querySelectorAll('.btn-option').forEach(btn => btn.classList.remove('btn-locked'));
-                    isWrongCooldown = false;
+                    document.querySelectorAll(optionsId + ' .btn-option').forEach(btn => btn.classList.remove('btn-locked'));
+                    if (team === 'red') redCooldown = false;
+                    else blueCooldown = false;
                 }, 700);
             }
         }
@@ -426,7 +436,7 @@
         function startGame() {
             markerPosition = 50;
             redScore = 0; blueScore = 0;
-            isWrongCooldown = false;
+            redCooldown = false; blueCooldown = false;
             document.getElementById("red-score").innerText  = "0";
             document.getElementById("blue-score").innerText = "0";
             document.getElementById("rope-img").style.transform = "translate(-50%, -50%)";
